@@ -152,7 +152,7 @@ def socket_sendfield(fd, data):
     fd   Socket file descriptor to write
     data Data bytes to send
   """
-  if fd.send(socket_encode_size(len(data))) != 4 or fd.send(data) != len(data):
+  if fd.sendall(socket_encode_size(len(data))) is not None or fd.sendall(data) is not None:
     raise IOError("Send failed")
 
 # ---------------------------------------------------------------------------- #
