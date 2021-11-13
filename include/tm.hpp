@@ -1,10 +1,11 @@
 /**
  * @file   tm.hpp
  * @author Sébastien ROUAULT <sebastien.rouault@epfl.ch>
+ * @author Antoine MURAT <antoine.murat@epfl.ch>
  *
  * @section LICENSE
  *
- * Copyright © 2018-2019 Sébastien ROUAULT.
+ * Copyright © 2018-2021 Sébastien ROUAULT.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,10 +30,14 @@
 
 // -------------------------------------------------------------------------- //
 
-using shared_t = void*;
+using shared_t = void*; // The type of a shared memory region
 constexpr static shared_t invalid_shared = nullptr; // Invalid shared memory region
 
-using tx_t = uintptr_t;
+// Note: a uintptr_t is an unsigned integer that is big enough to store an
+// address. Said differently, you can either use an integer to identify
+// transactions, or an address (e.g., if you created an associated data
+// structure).
+using tx_t = uintptr_t; // The type of a transaction identifier
 constexpr static tx_t invalid_tx = ~(tx_t(0)); // Invalid transaction constant
 
 enum class Alloc: int {

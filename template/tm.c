@@ -25,52 +25,14 @@
 // Internal headers
 #include <tm.h>
 
-// -------------------------------------------------------------------------- //
-
-/** Define a proposition as likely true.
- * @param prop Proposition
-**/
-#undef likely
-#ifdef __GNUC__
-    #define likely(prop) \
-        __builtin_expect((prop) ? 1 : 0, 1)
-#else
-    #define likely(prop) \
-        (prop)
-#endif
-
-/** Define a proposition as likely false.
- * @param prop Proposition
-**/
-#undef unlikely
-#ifdef __GNUC__
-    #define unlikely(prop) \
-        __builtin_expect((prop) ? 1 : 0, 0)
-#else
-    #define unlikely(prop) \
-        (prop)
-#endif
-
-/** Define one or several attributes.
- * @param type... Attribute names
-**/
-#undef as
-#ifdef __GNUC__
-    #define as(type...) \
-        __attribute__((type))
-#else
-    #define as(type...)
-    #warning This compiler has no support for GCC attributes
-#endif
-
-// -------------------------------------------------------------------------- //
+#include "macros.h"
 
 /** Create (i.e. allocate + init) a new shared memory region, with one first non-free-able allocated segment of the requested size and alignment.
  * @param size  Size of the first shared segment of memory to allocate (in bytes), must be a positive multiple of the alignment
  * @param align Alignment (in bytes, must be a power of 2) that the shared memory region must support
  * @return Opaque shared memory region handle, 'invalid_shared' on failure
 **/
-shared_t tm_create(size_t size as(unused), size_t align as(unused)) {
+shared_t tm_create(size_t unused(size), size_t unused(align)) {
     // TODO: tm_create(size_t, size_t)
     return invalid_shared;
 }
@@ -78,7 +40,7 @@ shared_t tm_create(size_t size as(unused), size_t align as(unused)) {
 /** Destroy (i.e. clean-up + free) a given shared memory region.
  * @param shared Shared memory region to destroy, with no running transaction
 **/
-void tm_destroy(shared_t shared as(unused)) {
+void tm_destroy(shared_t unused(shared)) {
     // TODO: tm_destroy(shared_t)
 }
 
@@ -86,7 +48,7 @@ void tm_destroy(shared_t shared as(unused)) {
  * @param shared Shared memory region to query
  * @return Start address of the first allocated segment
 **/
-void* tm_start(shared_t shared as(unused)) {
+void* tm_start(shared_t unused(shared)) {
     // TODO: tm_start(shared_t)
     return NULL;
 }
@@ -95,7 +57,7 @@ void* tm_start(shared_t shared as(unused)) {
  * @param shared Shared memory region to query
  * @return First allocated segment size
 **/
-size_t tm_size(shared_t shared as(unused)) {
+size_t tm_size(shared_t unused(shared)) {
     // TODO: tm_size(shared_t)
     return 0;
 }
@@ -104,7 +66,7 @@ size_t tm_size(shared_t shared as(unused)) {
  * @param shared Shared memory region to query
  * @return Alignment used globally
 **/
-size_t tm_align(shared_t shared as(unused)) {
+size_t tm_align(shared_t unused(shared)) {
     // TODO: tm_align(shared_t)
     return 0;
 }
@@ -114,7 +76,7 @@ size_t tm_align(shared_t shared as(unused)) {
  * @param is_ro  Whether the transaction is read-only
  * @return Opaque transaction ID, 'invalid_tx' on failure
 **/
-tx_t tm_begin(shared_t shared as(unused), bool is_ro as(unused)) {
+tx_t tm_begin(shared_t unused(shared), bool unused(is_ro)) {
     // TODO: tm_begin(shared_t)
     return invalid_tx;
 }
@@ -124,7 +86,7 @@ tx_t tm_begin(shared_t shared as(unused), bool is_ro as(unused)) {
  * @param tx     Transaction to end
  * @return Whether the whole transaction committed
 **/
-bool tm_end(shared_t shared as(unused), tx_t tx as(unused)) {
+bool tm_end(shared_t unused(shared), tx_t unused(tx)) {
     // TODO: tm_end(shared_t, tx_t)
     return false;
 }
@@ -137,7 +99,7 @@ bool tm_end(shared_t shared as(unused), tx_t tx as(unused)) {
  * @param target Target start address (in a private region)
  * @return Whether the whole transaction can continue
 **/
-bool tm_read(shared_t shared as(unused), tx_t tx as(unused), void const* source as(unused), size_t size as(unused), void* target as(unused)) {
+bool tm_read(shared_t unused(shared), tx_t unused(tx), void const* unused(source), size_t unused(size), void* unused(target)) {
     // TODO: tm_read(shared_t, tx_t, void const*, size_t, void*)
     return false;
 }
@@ -150,7 +112,7 @@ bool tm_read(shared_t shared as(unused), tx_t tx as(unused), void const* source 
  * @param target Target start address (in the shared region)
  * @return Whether the whole transaction can continue
 **/
-bool tm_write(shared_t shared as(unused), tx_t tx as(unused), void const* source as(unused), size_t size as(unused), void* target as(unused)) {
+bool tm_write(shared_t unused(shared), tx_t unused(tx), void const* unused(source), size_t unused(size), void* unused(target)) {
     // TODO: tm_write(shared_t, tx_t, void const*, size_t, void*)
     return false;
 }
@@ -162,7 +124,7 @@ bool tm_write(shared_t shared as(unused), tx_t tx as(unused), void const* source
  * @param target Pointer in private memory receiving the address of the first byte of the newly allocated, aligned segment
  * @return Whether the whole transaction can continue (success/nomem), or not (abort_alloc)
 **/
-alloc_t tm_alloc(shared_t shared as(unused), tx_t tx as(unused), size_t size as(unused), void** target as(unused)) {
+alloc_t tm_alloc(shared_t unused(shared), tx_t unused(tx), size_t unused(size), void** unused(target)) {
     // TODO: tm_alloc(shared_t, tx_t, size_t, void**)
     return abort_alloc;
 }
@@ -173,7 +135,7 @@ alloc_t tm_alloc(shared_t shared as(unused), tx_t tx as(unused), size_t size as(
  * @param target Address of the first byte of the previously allocated segment to deallocate
  * @return Whether the whole transaction can continue
 **/
-bool tm_free(shared_t shared as(unused), tx_t tx as(unused), void* target as(unused)) {
+bool tm_free(shared_t unused(shared), tx_t unused(tx), void* unused(target)) {
     // TODO: tm_free(shared_t, tx_t, void*)
     return false;
 }

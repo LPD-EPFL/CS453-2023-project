@@ -1,10 +1,11 @@
 /**
  * @file   tm.h
  * @author Sébastien ROUAULT <sebastien.rouault@epfl.ch>
+ * @author Antoine MURAT <antoine.murat@epfl.ch>
  *
  * @section LICENSE
  *
- * Copyright © 2018-2019 Sébastien ROUAULT.
+ * Copyright © 2018-2021 Sébastien ROUAULT.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,10 +31,14 @@
 
 // -------------------------------------------------------------------------- //
 
-typedef void* shared_t;
+typedef void* shared_t; // The type of a shared memory region
 static shared_t const invalid_shared = NULL; // Invalid shared memory region
 
-typedef uintptr_t tx_t;
+// Note: a uintptr_t is an unsigned integer that is big enough to store an
+// address. Said differently, you can either use an integer to identify
+// transactions, or an address (e.g., if you created an associated data
+// structure).
+typedef uintptr_t tx_t; // The type of a transaction identifier
 static tx_t const invalid_tx = ~((tx_t) 0); // Invalid transaction constant
 
 typedef int alloc_t;
