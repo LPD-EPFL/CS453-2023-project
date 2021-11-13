@@ -14,6 +14,7 @@ The description includes:
   * rules for (optionally) using 3rd-party libraries and collaboration (although the project is _individual_)
 
 This repository provides:
+* examples of how to use synchronization primitives (in `sync-examples/`)
 * a reference implementation (in `reference/`)
 * a "skeleton" implementation (in `template/`)
   * this template is written in C11
