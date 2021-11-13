@@ -54,9 +54,9 @@ typedef struct segment_node* segment_list;
  */
 struct region {
     struct shared_lock_t lock; // Global (coarse-grained) lock
-    void* start;        // Start of the shared memory region
+    void* start;        // Start of the shared memory region (i.e., of the non-deallocable memory segment)
     segment_list allocs; // Shared memory segments dynamically allocated via tm_alloc within transactions
-    size_t size;        // Size of the shared memory region (in bytes) (without dynamic allocs, i.e., as passed to tm_create)
+    size_t size;        // Size of the non-deallocable memory segment (in bytes)
     size_t align;       // Size of a word in the shared memory region (in bytes)
 };
 
