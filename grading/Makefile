@@ -24,7 +24,7 @@ LD       := $(if $(SRCS_CXX),$(CXX),$(CC))
 LDFLAGS  :=
 LDLIBS   := -ldl -lpthread
 
-LIB_DIRS := $(filter-out ../include/ ../grading/ ../playground/ ../template/,$(filter-out $(wildcard ../*),$(wildcard ../*/)))
+LIB_DIRS := $(filter-out ../include/ ../grading/ ../playground/ ../template/ ../sync-examples/,$(filter-out $(wildcard ../*),$(wildcard ../*/)))
 LIB_SOS  := $(patsubst %/,%.so,$(filter-out ../reference/,$(LIB_DIRS)))
 
 .PHONY: build build-libs clean clean-libs run
