@@ -327,7 +327,7 @@ public:
             if (unlikely(!correct)) {
                 barrier.sync();
                 barrier.sync();
-                return "Violated consistency";
+                return "Violated consistency during initialization";
             }
         }
         barrier.sync();
