@@ -152,27 +152,31 @@ static auto measure(Workload& workload, unsigned int const nbthreads, unsigned i
     ::std::vector<::std::thread> threads(nbthreads);
     ::std::mutex  cerrlock;        // To avoid interleaving writes to 'cerr' in case more than one thread throw
     Sync          sync{nbthreads}; // "As-synchronized-as-possible" starts so that threads interfere "as-much-as-possible"
+    
+    // We start nbthreads threads to measure performance.
     for (unsigned int i = 0; i < nbthreads; ++i) { // Start threads
         try {
             threads[i] = ::std::thread{[&](unsigned int i) {
+                // This is the workload that all threads run simulataneously.
+                // It is devided into a series of small tests. Each test is specified in workload.hpp.
+                // Threads are synchronized between each test so that they run with a lot of concurrency.
                 try {
-                    // Initialization
-                    if (!sync.worker_wait())
-                        return;
-                    sync.worker_notify(workload.init());
-                    // Performance measurements
+                    // 1. Initialization
+                    if (!sync.worker_wait()) return; // Sync. of threads
+                    sync.worker_notify(workload.init()); // Runs the test and tells the master about errors
+
+                    // 2. Performance measurements
                     for (unsigned int count = 0; count < nbrepeats; ++count) {
-                        if (!sync.worker_wait())
-                            return;
+                        if (!sync.worker_wait()) return;
                         sync.worker_notify(workload.run(i, seed + nbthreads * count + i));
                     }
-                    // Correctness check
-                    if (!sync.worker_wait())
-                        return;
+
+                    // 3. Correctness check
+                    if (!sync.worker_wait()) return;
                     sync.worker_notify(workload.check(i, std::random_device{}())); // Random seed is wanted here
+
                     // Synchronized quit
-                    if (!sync.worker_wait())
-                        return;
+                    if (!sync.worker_wait()) return;
                     throw Exception::Unreachable{"unexpected worker iteration after checks"};
                 } catch (::std::exception const& err) {
                     sync.worker_notify("Internal worker exception(s)"); // Exception post-'Sync::worker_wait' (i.e. in 'Workload::run' or 'Workload::check'), since 'Sync::worker_*' do not throw
@@ -189,6 +193,11 @@ static auto measure(Workload& workload, unsigned int const nbthreads, unsigned i
             throw;
         }
     }
+
+    // This is the master that synchronizes the worker threads.
+    // It basically triggers each step seen above.
+    // After all tests succeed, it returns the time it took to run each test.
+    // It returns early in case of a failure.
     try {
         char const* error = nullptr;
         Chrono::Tick time_init = Chrono::invalid_tick;
@@ -196,9 +205,9 @@ static auto measure(Workload& workload, unsigned int const nbthreads, unsigned i
         Chrono::Tick time_chck = Chrono::invalid_tick;
         auto const posmedian = nbrepeats / 2;
         { // Initialization (with cheap correctness test)
-            sync.master_notify();
-            auto res = sync.master_wait(maxtick_init);
-            if (unlikely(::std::holds_alternative<char const*>(res))) {
+            sync.master_notify(); // We tell workers to start working.
+            auto res = sync.master_wait(maxtick_init); // If running the student's version, it will timeout if way slower than the reference.
+            if (unlikely(::std::holds_alternative<char const*>(res))) { // If an error happened (timeout or violation), we return early!
                 error = ::std::get<char const*>(res);
                 goto join;
             }

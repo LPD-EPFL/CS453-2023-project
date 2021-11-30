@@ -160,24 +160,24 @@ private:
     **/
     bool long_tx(size_t& nbaccounts) const {
         return transactional(tm, Transaction::Mode::read_only, [&](Transaction& tx) {
-            auto count = 0ul;
-            auto sum   = Balance{0};
-            auto start = tm.get_start();
+            auto count = 0ul; // Total number of accounts seen.
+            auto sum   = Balance{0}; // Total balance on all seen accounts + parity ammount.
+            auto start = tm.get_start(); // The list of accounts starts at the first word of the shared memory region.
             while (start) {
-                AccountSegment segment{tx, start};
+                AccountSegment segment{tx, start}; // We interpret the memory as a segment/array of accounts.
                 decltype(count) segment_count = segment.count;
-                count += segment_count;
-                sum += segment.parity;
+                count += segment_count; // And accumulate the total number of accounts.
+                sum += segment.parity; // We also sum the money that results from the destruction of accounts.
                 for (decltype(count) i = 0; i < segment_count; ++i) {
                     Balance local = segment.accounts[i];
-                    if (unlikely(local < 0))
+                    if (unlikely(local < 0)) // If one account has a negative balance, there's a consistency issue.
                         return false;
                     sum += local;
                 }
-                start = segment.next;
+                start = segment.next; // Accounts are stored in linked segments, we move to the next one.
             }
             nbaccounts = count;
-            return sum == static_cast<Balance>(init_balance * count);
+            return sum == static_cast<Balance>(init_balance * count); // Consistency check: no money should ever be destroyed or created out of thin air.
         });
     }
     /** Account (de)allocation transaction, adding accounts with initial balance or removing them.
@@ -185,7 +185,7 @@ private:
     **/
     void alloc_tx(size_t trigger) const {
         return transactional(tm, Transaction::Mode::read_write, [&](Transaction& tx) {
-            auto count = 0ul;
+            auto count = 0ul; // Total number of accounts seen.
             void* prev = nullptr;
             auto start = tm.get_start();
             while (true) {
@@ -194,24 +194,24 @@ private:
                 count += segment_count;
                 decltype(start) segment_next = segment.next;
                 if (!segment_next) { // Currently at the last segment
-                    if (count > trigger && likely(count > 2)) { // Deallocate
-                        --segment_count;
-                        auto new_parity = segment.parity.read() + segment.accounts[segment_count] - init_balance;
-                        if (segment_count > 0) { // Just "deallocate" account
+                    if (count > trigger && likely(count > 2)) { // If we have seen "too many" accounts, we will destroy one.
+                        --segment_count; // Let's remove the last account from the last segment.
+                        auto new_parity = segment.parity.read() + segment.accounts[segment_count] - init_balance; // We remove 1x the initial balance but don't break parity.
+                        if (segment_count > 0) { // Just remove one account from the (last) segment without deallocating memory.
                             segment.count = segment_count;
                             segment.parity = new_parity;
-                        } else { // Deallocate segment
+                        } else { // If there's no one in the last segment anymore, we deallocate it.
                             if (unlikely(assert_mode && prev == nullptr))
                                 throw Exception::TransactionNotLastSegment{};
                             AccountSegment prev_segment{tx, prev};
                             prev_segment.next.free();
                             prev_segment.parity = prev_segment.parity.read() + new_parity;
                         }
-                    } else { // Allocate
-                        if (segment_count < nbaccounts) { // Just "allocate" account
+                    } else { // If we don't destroy any account, then let's create a new one.
+                        if (segment_count < nbaccounts) { // If there's room in the last segment, then let's create the account in it without allocating memory.
                             segment.accounts[segment_count] = init_balance;
                             segment.count = segment_count + 1;
-                        } else {
+                        } else { // Otherwise, we really need to allocate memory for the new account.
                             AccountSegment next_segment{tx, segment.next.alloc(AccountSegment::size(nbaccounts))};
                             next_segment.count = 1;
                             next_segment.accounts[0] = init_balance;
@@ -233,6 +233,7 @@ private:
         return transactional(tm, Transaction::Mode::read_write, [&](Transaction& tx) {
             void* send_ptr = nullptr;
             void* recv_ptr = nullptr;
+
             // Get the account pointers in shared memory
             auto start = tm.get_start();
             while (true) {
@@ -260,8 +261,9 @@ private:
                 if (!start) // Current segment is the last segment
                     return false; // At least one account does not exist => do nothing
             }
+
             // Transfer the money if enough fund
-            Shared<Balance> sender{tx, send_ptr};
+            Shared<Balance> sender{tx, send_ptr}; // Shared is a template that overloads copy to use tm_read/tm_write.
             Shared<Balance> recver{tx, recv_ptr};
             auto send_val = sender.read();
             if (send_val > 0) {
@@ -272,6 +274,9 @@ private:
         });
     }
 public:
+    /**
+     * Initialize the first segment of accounts and check the initial ballance (2 transactions).
+    **/
     virtual char const* init() const {
         transactional(tm, Transaction::Mode::read_write, [&](Transaction& tx) {
             AccountSegment segment{tx, tm.get_start()};
@@ -287,6 +292,11 @@ public:
             return "Violated consistency (check that committed writes in shared memory get visible to the following transactions' reads)";
         return nullptr;
     }
+
+    /**
+     * Run nbtxperwrk random transactions until completion.
+     * @param seed Randomness source
+    **/
     virtual char const* run(Uid uid [[gnu::unused]], Seed seed) const {
         ::std::minstd_rand engine{seed};
         ::std::bernoulli_distribution long_dist{prob_long};
@@ -294,12 +304,12 @@ public:
         ::std::gamma_distribution<float> alloc_trigger(expnbaccounts, 1);
         size_t count = nbaccounts;
         for (size_t cntr = 0; cntr < nbtxperwrk; ++cntr) {
-            if (long_dist(engine)) { // Do a long transaction
-                if (unlikely(!long_tx(count)))
+            if (long_dist(engine)) { // We roll a dice and, if "lucky", run a long transaction.
+                if (unlikely(!long_tx(count))) // If it fails, then we return an error message.
                     return "Violated isolation or atomicity";
-            } else if (alloc_dist(engine)) { // Do an allocation transaction
+            } else if (alloc_dist(engine)) { // Let's roll a dice again to trigger an allocation transaction.
                 alloc_tx(alloc_trigger(engine));
-            } else { // Do a short transaction
+            } else { // No luck with previous rolls, let's just run a short transaction.
                 ::std::uniform_int_distribution<size_t> account{0, count - 1};
                 while (unlikely(!short_tx(account(engine), account(engine))));
             }
@@ -311,15 +321,23 @@ public:
         }
         return nullptr;
     }
+    /**
+     * Test in which we check that multiple concurrent transactions can decrease a counter in a sequential manner.
+     * @param uid Id of the thread to run the check
+    **/
     virtual char const* check(Uid uid, Seed seed [[gnu::unused]]) const {
         constexpr size_t nbtxperwrk = 100;
+
         barrier.sync();
-        if (uid == 0) { // Initialization
+        if (uid == 0) { // Only the first thread initializes the shared memory.
+            // We first write the initial value,
             auto init_counter = nbtxperwrk * nbworkers;
             transactional(tm, Transaction::Mode::read_write, [&](Transaction& tx) {
                 Shared<size_t> counter{tx, tm.get_start()};
                 counter = init_counter;
             });
+
+            // And check in another transaction that it was written correctly.
             auto correct = transactional(tm, Transaction::Mode::read_only, [&](Transaction& tx) {
                 Shared<size_t> counter{tx, tm.get_start()};
                 return counter == init_counter;
@@ -330,12 +348,18 @@ public:
                 return "Violated consistency during initialization";
             }
         }
+
+        // In each thread,
         barrier.sync();
         for (size_t i = 0; i < nbtxperwrk; ++i) {
+
+            // We first fetch the last value of the counter,
             auto last = transactional(tm, Transaction::Mode::read_only, [&](Transaction& tx) {
                 Shared<size_t> counter{tx, tm.get_start()};
                 return counter.read();
             });
+
+            // And then we decrease the value of the counter after checking that it didn't increase since the last read.
             auto correct = transactional(tm, Transaction::Mode::read_write, [&](Transaction& tx) {
                 Shared<size_t> counter{tx, tm.get_start()};
                 auto value = counter.read();
@@ -349,6 +373,8 @@ public:
                 return "Violated consistency, isolation or atomicity";
             }
         }
+
+        // Finally, a last transaction runs in the first thread to check that the counter reached 0 (i.e., each transaction decreased it by 1.).
         barrier.sync();
         if (uid == 0) {
             auto correct = transactional(tm, Transaction::Mode::read_only, [&](Transaction& tx) {
