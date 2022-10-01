@@ -152,7 +152,7 @@ public:
      * @param prob_long     Probability of running a long, read-only control transaction
      * @param prob_alloc    Probability of running an allocation/deallocation transaction, knowing a long transaction won't run
     **/
-    WorkloadBank(TransactionalLibrary const& library, size_t nbworkers, size_t nbtxperwrk, size_t nbaccounts, size_t expnbaccounts, Balance init_balance, float prob_long, float prob_alloc): Workload{library, AccountSegment::align(), AccountSegment::size(nbaccounts)}, nbworkers{nbworkers}, nbtxperwrk{nbtxperwrk}, nbaccounts{nbaccounts}, expnbaccounts{expnbaccounts}, init_balance{init_balance}, prob_long{prob_long}, prob_alloc{prob_alloc}, barrier{nbworkers} {}
+    WorkloadBank(TransactionalLibrary const& library, size_t nbworkers, size_t nbtxperwrk, size_t nbaccounts, size_t expnbaccounts, Balance init_balance, float prob_long, float prob_alloc): Workload{library, AccountSegment::align(), AccountSegment::size(nbaccounts)}, nbworkers{nbworkers}, nbtxperwrk{nbtxperwrk}, nbaccounts{nbaccounts}, expnbaccounts{expnbaccounts}, init_balance{init_balance}, prob_long{prob_long}, prob_alloc{prob_alloc}, barrier{static_cast<Barrier::Counter>(nbworkers)} {}
 private:
     /** Long read-only transaction, summing the balance of each account.
      * @param count Loosely-updated number of accounts
